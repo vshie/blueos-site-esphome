@@ -120,6 +120,8 @@ def fetch_beacon(beacon_host: str, beacon_port: str) -> dict:
         wifi_hostname = None
         try:
             services = fetch_json(f"{base}/services")
+            # Prefer Wi‑Fi names that match the *current* vehicle hostname.
+            # Stale leftovers like "blueos-wifi" can still be advertised after a rename.
             wifi_names = sorted(
                 {
                     s.get("hostname")
@@ -127,6 +129,7 @@ def fetch_beacon(beacon_host: str, beacon_port: str) -> dict:
                     if isinstance(s, dict)
                     and s.get("hostname")
                     and "wifi" in str(s.get("interface_type", "")).lower()
+                    and str(s.get("hostname")).startswith(hostname)
                 }
             )
             if wifi_names:
@@ -137,11 +140,12 @@ def fetch_beacon(beacon_host: str, beacon_port: str) -> dict:
         if not wifi_hostname:
             wifi_hostname = f"{hostname}-wifi"
         result["wifi_hostname"] = wifi_hostname
-        wifi_candidate = f"{wifi_hostname}.local"
-        if wifi_candidate not in candidates:
-            candidates.append(wifi_candidate)
-
-        result["candidates"] = candidates
+        # Put Wi‑Fi first: ESP boards on site LAN must not pick the tether IP
+        # that bare "{hostname}.local" often resolves to (e.g. 192.168.2.2).
+        candidates = [f"{wifi_hostname}.local", f"{hostname}.local"]
+        # De-dupe while preserving order
+        seen = set()
+        result["candidates"] = [c for c in candidates if not (c in seen or seen.add(c))]
     except Exception as exc:  # noqa: BLE001 - report to UI, don't crash wizard
         result["error"] = str(exc)
     return result
