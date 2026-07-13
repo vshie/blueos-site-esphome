@@ -96,7 +96,8 @@ and drop that permission (edit the extension's custom settings after install).
 
 ## Manual install on BlueOS
 
-Open BlueOS → **Extensions** → **Installed** → **+** and fill:
+Open BlueOS → **Extensions** → **Installed** → **+** and fill these fields
+exactly:
 
 | Field | Value |
 |-------|--------|
@@ -105,7 +106,8 @@ Open BlueOS → **Extensions** → **Installed** → **+** and fill:
 | **Docker image** | `vshie/blueos-site-esphome` |
 | **Docker tag** | `main` |
 
-**Custom settings** — paste verbatim:
+**Custom settings** — paste this JSON **verbatim** into the permissions /
+custom-settings box (USB flash + Beacon hostname + persistent config):
 
 ```json
 {
@@ -136,8 +138,21 @@ Open BlueOS → **Extensions** → **Installed** → **+** and fill:
 }
 ```
 
-Then open the extension's status page (port 80) to run the setup wizard, and
-`http://<blueos-ip>:6052` for the ESPHome dashboard directly.
+What each piece does:
+
+| Setting | Why |
+|---------|-----|
+| `Privileged` + `/dev:/dev` | USB serial for first-flash (ESP32-S3 path varies) |
+| `ExtraHosts: host.docker.internal:host-gateway` | Wizard → Beacon `GET :9111/v1.0/hostname` |
+| Host port `6052` | ESPHome Device Builder dashboard |
+| Dynamic host port for `80` | Setup wizard (“Open” in Extensions) |
+| `/usr/blueos/extensions/esphome:/config` | Persists `blueos-relay.yaml` + `secrets.yaml` |
+
+**After install**
+
+1. Click **Open** on the extension → setup wizard (Beacon broker + Wi‑Fi + secrets).
+2. Dashboard: `http://<blueos-ip>:6052`
+3. Safe to run alongside **`blueos-site-stack`**: stack owns `1883` / `9001` / `8086`; this extension owns `6052` (+ a dynamic wizard port). No port overlap.
 
 ## Ports
 
@@ -191,7 +206,11 @@ back there too.
 - `DOCKER_USERNAME` = `vshie`
 - `DOCKER_PASSWORD` = Docker Hub [access token](https://hub.docker.com/settings/security)
 
-Image: **`vshie/blueos-site-esphome:<tag>`**
+Published image: **`vshie/blueos-site-esphome:main`** (also tagged per git tag / SemVer).
+
+CI builds **arm64 + amd64 only** (custom workflow — upstream ESPHome has no
+`arm/v7` image, and `Deploy-BlueOS-Extension@v1.2.0` always tries an arm/v7
+artifact after push).
 
 ## Secrets — local dev, not committed
 
