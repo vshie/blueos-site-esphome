@@ -258,11 +258,34 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args) -> None:  # quieter default logging
         print(f"[wizard] {self.address_string()} {fmt % args}")
 
+    def _path_only(self) -> str:
+        return (self.path or "/").split("?", 1)[0]
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib signature
-        if self.path in STATIC_FILES:
-            filename, content_type = STATIC_FILES[self.path]
+        path = self._path_only()
+        # BlueOS sidebar registration:
+        # https://blueos.cloud/docs/latest/development/extensions/#web-interface-http-server
+        if path.rstrip("/") == "/register_service":
+            self._send_json(
+                {
+                    "name": "ESPHome Site",
+                    "description": (
+                        "ESPHome Device Builder with bundled blueos-relay YAML, "
+                        "Beacon MQTT hostname inject, and USB/OTA flash wizard."
+                    ),
+                    "icon": "mdi-chip",
+                    "company": "Community",
+                    "version": "0.2.1",
+                    "webpage": "https://github.com/vshie/blueos-site-esphome",
+                    "api": "https://github.com/vshie/blueos-site-esphome/blob/main/README.md",
+                    "new_page": False,
+                    "works_in_relative_paths": True,
+                }
+            )
+        elif path in STATIC_FILES:
+            filename, content_type = STATIC_FILES[path]
             self._send_static(filename, content_type)
-        elif self.path == "/api/status":
+        elif path == "/api/status":
             try:
                 self._send_json(build_status())
             except Exception as exc:  # noqa: BLE001
@@ -271,7 +294,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": "not found"}, 404)
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib signature
-        if self.path != "/api/configure":
+        if self._path_only() != "/api/configure":
             self._send_json({"error": "not found"}, 404)
             return
         length = int(self.headers.get("Content-Length", "0"))

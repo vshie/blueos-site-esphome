@@ -22,7 +22,9 @@ BlueOS hostname — never a hardcoded `blueos.local`.
 ## Setup wizard (Beacon hostname injection)
 
 Open the extension ("Open" in BlueOS Extensions → this image) to reach the
-wizard on port 80:
+wizard on port 80. The wizard also serves `/register_service` so **ESPHome Site**
+appears in the BlueOS sidebar
+([docs](https://blueos.cloud/docs/latest/development/extensions/#web-interface-http-server)):
 
 1. **MQTT broker** — the wizard calls BlueOS **Beacon** at
    `http://host.docker.internal:9111/v1.0/hostname` (reachable via the
