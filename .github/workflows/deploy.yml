@@ -54,6 +54,7 @@ jobs:
 
       - name: Build and push (arm64 + amd64)
         uses: docker/build-push-action@v6
+        timeout-minutes: 360
         with:
           context: .
           file: ./Dockerfile
@@ -68,6 +69,7 @@ jobs:
             MAINTAINER_EMAIL=tony@bluerobotics.com
             REPO=vshie/blueos-site-esphome
             OWNER=vshie
+            PREWARM=1
 
       - name: Inspect published image
         run: docker buildx imagetools inspect "${IMAGE_NAME}:${{ steps.tags.outputs.version }}"
