@@ -19,6 +19,7 @@ ARG OWNER=vshie
 # Wizard needs only the stdlib + PyYAML, which the base image already ships for
 # ESPHome's own YAML parsing — no extra pip installs required.
 COPY config/blueos-relay.yaml /opt/blueos/factory/blueos-relay.yaml
+COPY config/schedule.h /opt/blueos/factory/schedule.h
 COPY config/secrets.yaml.example /opt/blueos/factory/secrets.yaml.example
 COPY www/ /opt/blueos/www/
 COPY wizard/wizard.py /opt/blueos/wizard.py
@@ -39,7 +40,7 @@ EXPOSE 80/tcp 6052/tcp
 
 VOLUME /config
 
-LABEL version="0.1.0"
+LABEL version="0.2.0"
 LABEL type="other"
 LABEL tags='["esphome","mqtt","flash","ota","relay","iot"]'
 LABEL requirements="core >= 1.1"

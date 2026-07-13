@@ -168,17 +168,74 @@ never starts from a blank ESPHome project:
 
 - 6× relay switches, boot button, buzzer, status RGB LED
 - DS3231 RTC via `ds1307` platform (I2C `GPIO4`/`GPIO5`) — offline clock of
-  record; SNTP writes wall time back to the chip when online
+  record; SNTP writes wall time back to the chip when online, and the chip
+  is periodically re-read (`update_interval: 6h`) to correct ESP32 internal
+  clock drift even when the device never gets internet
+- **Per-relay daily on/off scheduler** (`schedule.h`, edge-triggered against
+  `id(rtc_time).now()`) — see [MQTT schedule schema](#mqtt-schedule-schema)
+  below. Config is set/read entirely over MQTT retained messages; no flash
+  writes on the ESP side.
 - `RTC Temperature` template sensor (chip's onboard temp register)
+- `RTC Epoch` template sensor (Unix seconds from the RTC-backed system
+  clock) — consumed by `blueos-site-stack`'s time-from-RTC sidecar and
+  graphable in Grafana
 - `RTC DateTime` template text sensor (human-readable wall time) — added so
   `blueos-site-ui` can show a status/debug table without extra tooling
-- `RTC Read from DS3231` / `RTC Write from ESP time` buttons for manual sync
+- `RTC Sync Now` momentary switch (MQTT-controllable; native `button:`
+  entities have no MQTT topic) and `RTC Read from DS3231` / `RTC Write from
+  ESP time` buttons (API/web_server only) for manual sync
 - MQTT `topic_prefix: blueos/relay` — **coordinated with `blueos-site-stack`
   (Telegraf topic subscription pattern `blueos/+/sensor|switch|binary_sensor/+/state`
   and `blueos/+/status`) and `blueos-site-ui` (control page / Grafana
   datasource)**. Don't change this without updating those extensions too.
 - `mqtt.broker: !secret mqtt_broker` — filled by this extension's wizard, not
   hardcoded
+- `schedule.h` (bundled alongside `blueos-relay.yaml`, referenced via
+  `esphome.includes`) — shared scheduler logic. The wizard re-seeds this file
+  from the image on every start so extension updates pick up scheduler fixes
+  without touching your `blueos-relay.yaml`/`secrets.yaml`.
+
+### MQTT schedule schema
+
+Per-relay daily on/off window, set and read entirely over MQTT (no HA, no
+flash writes on the ESP — the broker's retained `/set` message *is* the
+durable copy, replayed to the device on every reconnect/reboot):
+
+| Topic | Direction | Payload |
+|-------|-----------|---------|
+| `blueos/relay/schedule/relay_<N>/set` | site-ui → ESP (retain) | `{"enabled":bool,"on":"HH:MM","off":"HH:MM","days":"SMTWTFS"}` |
+| `blueos/relay/schedule/relay_<N>/state` | ESP → broker (retain) | Same shape — echoed after every `/set` and on every MQTT (re)connect |
+
+`N` is `1`–`6`. `days` is a 7-character string, index 0 = Sunday .. index 6 =
+Saturday, `'1'` = active that day (all fields except `enabled` are optional
+per-message — omit `days` to leave the existing day mask untouched, etc.).
+A window where `off` < `on` wraps past midnight; the day mask is evaluated
+against the day the window **starts** on.
+
+The engine is edge-triggered: it only calls `switch.turn_on`/`turn_off` when
+the scheduled window transitions, so a manual override via
+`blueos/relay/switch/relay_<N>/command` between two edges is left alone
+until the next scheduled transition — Home-Assistant-style "the schedule
+doesn't fight your manual click".
+
+Full topic map (unchanged entities + new ones from this iteration):
+
+| Entity | Domain (MQTT) | Topic (state) | Notes |
+|--------|--------|----------------|-------|
+| Relay 1–6 | switch | `blueos/relay/switch/relay_N/state` | Command: `ON`/`OFF` — also driven by the scheduler |
+| RTC Sync Now | switch (momentary) | `blueos/relay/switch/rtc_sync_now/state` | Command `ON` → writes current system time to DS3231 |
+| RTC Temperature | sensor | `blueos/relay/sensor/rtc_temperature/state` | °C |
+| RTC Epoch | sensor | `blueos/relay/sensor/rtc_epoch/state` | Unix seconds |
+| RTC DateTime | **sensor** (not `text_sensor` — see note) | `blueos/relay/sensor/rtc_datetime/state` | `YYYY-MM-DD HH:MM:SS` |
+| Firmware/IP/SSID/MAC | **sensor** (not `text_sensor`) | `blueos/relay/sensor/<name>/state` | Read-only strings |
+| Schedule relay_N | — (custom JSON) | `blueos/relay/schedule/relay_N/state` / `.../set` | See table above |
+| Device availability | — | `blueos/relay/status` | `online`/`offline` (LWT) |
+
+> **ESPHome MQTT quirk:** all `text_sensor:` entities publish under the
+> `sensor` MQTT topic segment, not `text_sensor` — ESPHome's
+> `MQTTTextSensor` component registers itself with component type `"sensor"`
+> (see `esphome/components/mqtt/mqtt_text_sensor.cpp`). `blueos-site-ui`'s
+> device seed accounts for this.
 
 > **Note:** `blueos-site-stack`'s Telegraf only subscribes to
 > `sensor`/`switch`/`binary_sensor`/`status` topics for InfluxDB history (see

@@ -37,6 +37,11 @@ SECRETS_PATH = os.path.join(CONFIG_DIR, "secrets.yaml")
 YAML_PATH = os.path.join(CONFIG_DIR, f"{PROJECT_NAME}.yaml")
 FACTORY_YAML = os.path.join(FACTORY_DIR, f"{PROJECT_NAME}.yaml")
 FACTORY_SECRETS_EXAMPLE = os.path.join(FACTORY_DIR, "secrets.yaml.example")
+# blueos-relay.yaml's `esphome.includes` pulls this in for the relay
+# scheduler (see blueos-site-ui's "MQTT schedule schema" docs) — must live
+# next to the .yaml in /config for the ESPHome compiler to find it.
+SCHEDULE_HEADER = "schedule.h"
+FACTORY_SCHEDULE_HEADER = os.path.join(FACTORY_DIR, SCHEDULE_HEADER)
 
 STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -52,6 +57,12 @@ def ensure_seeded() -> None:
         shutil.copy(FACTORY_YAML, YAML_PATH)
     if not os.path.exists(SECRETS_PATH) and os.path.exists(FACTORY_SECRETS_EXAMPLE):
         shutil.copy(FACTORY_SECRETS_EXAMPLE, SECRETS_PATH)
+    # Always refresh the bundled schedule.h from the image (it has no user
+    # data — safe to overwrite on every start so extension updates pick up
+    # scheduler fixes without touching blueos-relay.yaml/secrets.yaml).
+    schedule_dest = os.path.join(CONFIG_DIR, SCHEDULE_HEADER)
+    if os.path.exists(FACTORY_SCHEDULE_HEADER):
+        shutil.copy(FACTORY_SCHEDULE_HEADER, schedule_dest)
 
 
 def load_secrets() -> dict:

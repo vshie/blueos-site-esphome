@@ -1,14 +1,12 @@
 # Waveshare ESP32-S3-Relay-6CH — BlueOS / ESPHome (HA-optional)
 # Pinout: https://www.waveshare.com/wiki/ESP32-S3-Relay-6CH
-# Flash: 16MB. Bundled factory project for the `blueos-site-esphome` BlueOS extension.
-#
-# MQTT broker is NOT hardcoded here — it comes from !secret mqtt_broker, which the
-# BlueOS setup wizard writes into secrets.yaml from the live Beacon hostname
-# (`{hostname}.local`), not a fixed `blueos.local`. See secrets.yaml.example.
+# Flash: 16MB (confirmed via esptool). MAC: 10:20:BA:5D:48:98
 
 esphome:
   name: blueos-relay
   friendly_name: BlueOS Relay
+  includes:
+    - schedule.h
   on_boot:
     priority: -10
     then:
@@ -60,16 +58,96 @@ captive_portal:
 web_server:
   port: 80
 
-# MQTT broker = BlueOS Mosquitto (blueos-site-stack), injected by the blueos-site-esphome
-# wizard from the BlueOS Beacon service (`GET /v1.0/hostname` -> "{hostname}.local"),
-# never a hardcoded blueos.local. topic_prefix is coordinated with blueos-site-stack /
-# blueos-site-ui, which expect `blueos/relay`.
+# MQTT broker = BlueOS Mosquitto extension on the Pi. The blueos-site-esphome
+# extension's setup wizard now injects this secret from the live BlueOS Beacon
+# hostname ({hostname}.local) instead of a hand-typed static IP/blueos.local.
 mqtt:
+  id: mqtt_client
   broker: !secret mqtt_broker
   discovery: false
   topic_prefix: blueos/relay
-  # Default birth/will publish "online"/"offline" to blueos/relay/status — used by
-  # blueos-site-ui to show device connectivity.
+  # Schedule config channel — see "MQTT schedule schema" in
+  # blueos-site-ui/README.md. Broker retains the `/set` payload, so
+  # resubscribing on reconnect/reboot re-applies the last schedule saved by
+  # site-ui without any flash writes on the ESP side.
+  on_json_message:
+    - topic: blueos/relay/schedule/relay_1/set
+      then:
+        - lambda: |-
+            auto &sc = blueos_schedule::schedules()[0];
+            if (x["enabled"].is<bool>()) sc.enabled = x["enabled"];
+            if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
+            if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
+            if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
+        - script.execute:
+            id: publish_relay_schedule
+            index: 0
+    - topic: blueos/relay/schedule/relay_2/set
+      then:
+        - lambda: |-
+            auto &sc = blueos_schedule::schedules()[1];
+            if (x["enabled"].is<bool>()) sc.enabled = x["enabled"];
+            if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
+            if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
+            if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
+        - script.execute:
+            id: publish_relay_schedule
+            index: 1
+    - topic: blueos/relay/schedule/relay_3/set
+      then:
+        - lambda: |-
+            auto &sc = blueos_schedule::schedules()[2];
+            if (x["enabled"].is<bool>()) sc.enabled = x["enabled"];
+            if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
+            if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
+            if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
+        - script.execute:
+            id: publish_relay_schedule
+            index: 2
+    - topic: blueos/relay/schedule/relay_4/set
+      then:
+        - lambda: |-
+            auto &sc = blueos_schedule::schedules()[3];
+            if (x["enabled"].is<bool>()) sc.enabled = x["enabled"];
+            if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
+            if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
+            if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
+        - script.execute:
+            id: publish_relay_schedule
+            index: 3
+    - topic: blueos/relay/schedule/relay_5/set
+      then:
+        - lambda: |-
+            auto &sc = blueos_schedule::schedules()[4];
+            if (x["enabled"].is<bool>()) sc.enabled = x["enabled"];
+            if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
+            if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
+            if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
+        - script.execute:
+            id: publish_relay_schedule
+            index: 4
+    - topic: blueos/relay/schedule/relay_6/set
+      then:
+        - lambda: |-
+            auto &sc = blueos_schedule::schedules()[5];
+            if (x["enabled"].is<bool>()) sc.enabled = x["enabled"];
+            if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
+            if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
+            if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
+        - script.execute:
+            id: publish_relay_schedule
+            index: 5
+  on_connect:
+    then:
+      # Give the broker a moment to replay retained schedule/set messages
+      # (received above) before we echo back the state topics.
+      - delay: 2s
+      - script.execute: { id: publish_relay_schedule, index: 0 }
+      - script.execute: { id: publish_relay_schedule, index: 1 }
+      - script.execute: { id: publish_relay_schedule, index: 2 }
+      - script.execute: { id: publish_relay_schedule, index: 3 }
+      - script.execute: { id: publish_relay_schedule, index: 4 }
+      - script.execute: { id: publish_relay_schedule, index: 5 }
 
 # Pico HAT I2C0 — Pico-RTC-DS3231 uses GP4=SDA, GP5=SCL (maps 1:1 on this board).
 # Official Arduino Wire defaults (8/9) are NOT the Pico HAT bus.
@@ -81,13 +159,21 @@ i2c:
   frequency: 100kHz
 
 # DS3231 is the offline clock of record (ESPHome platform name is ds1307).
-# SNTP (when on a real LAN) writes back to the chip.
+# SNTP (when on a real LAN) writes back to the chip. NOTE: ESPHome's
+# underlying system clock (settimeofday) is shared by every `time:` platform,
+# so id(rtc_time).now() and id(sntp_time).now() always agree — the two
+# platforms just differ in *who last corrected* that one clock. The relay
+# scheduler below reads id(rtc_time).now(), which is therefore accurate
+# whether the last correction came from the DS3231 (offline) or SNTP
+# (online) — "schedule timing from the onboard RTC" holds in both cases.
 time:
   - platform: ds1307
     id: rtc_time
     address: 0x68
     timezone: Pacific/Honolulu
-    update_interval: never
+    # Periodic re-read from the DS3231 corrects ESP32 internal-clock drift
+    # even when SNTP never becomes available (fully offline site).
+    update_interval: 6h
 
   - platform: sntp
     id: sntp_time
@@ -134,8 +220,7 @@ sensor:
     name: "Uptime"
     update_interval: 60s
 
-  # DS3231 temperature registers 0x11/0x12 (0.25°C resolution). Consumed by
-  # blueos-site-ui as the "RTC temperature" trend (Grafana / control page).
+  # DS3231 temperature registers 0x11/0x12 (0.25°C resolution).
   - platform: template
     name: "RTC Temperature"
     id: rtc_temperature
@@ -153,6 +238,23 @@ sensor:
       int16_t raw = (int16_t(int8_t(data[0])) << 2) | (data[1] >> 6);
       return raw * 0.25f;
 
+  # Unix epoch seconds from the RTC-backed system clock — consumed by
+  # blueos-site-stack's time-from-RTC sidecar (host clock fallback when
+  # there's no internet NTP) and graphable in Grafana alongside rtc_datetime.
+  - platform: template
+    name: "RTC Epoch"
+    id: rtc_epoch
+    unit_of_measurement: "s"
+    icon: mdi:clock-check-outline
+    accuracy_decimals: 0
+    update_interval: 30s
+    lambda: |-
+      auto t = id(rtc_time).now();
+      if (!t.is_valid()) {
+        return NAN;
+      }
+      return (float) t.timestamp;
+
 text_sensor:
   - platform: version
     name: "Firmware Version"
@@ -168,6 +270,7 @@ text_sensor:
 
   # Human-readable RTC wall time, for the blueos-site-ui status table / debugging
   # clock drift without needing a separate time-sync tool.
+  # Synced from blueos-site-esphome's bundled config/blueos-relay.yaml.
   - platform: template
     name: "RTC DateTime"
     id: rtc_datetime
@@ -233,6 +336,86 @@ switch:
       - rtttl.play: "beep:d=4,o=5,b=100:16e6"
       - delay: 200ms
       - switch.turn_off: buzzer_beep
+
+  # Momentary switch (not a `button:`) so it gets an MQTT command/state topic.
+  # ESPHome's MQTT integration has no MQTTButtonComponent, so native `button:`
+  # entities (rtc_read_button / rtc_write_button below) are API/web_server-only
+  # and cannot be triggered from blueos-site-ui over MQTT. This switch writes
+  # the ESP's current time (already NTP-synced via `sntp` when online) into the
+  # DS3231, on demand, from the control page.
+  # Topic: blueos/relay/switch/rtc_sync_now/command (payload "ON").
+  - platform: template
+    name: "RTC Sync Now"
+    id: rtc_sync_now
+    optimistic: true
+    turn_on_action:
+      - ds1307.write_time:
+          id: rtc_time
+      - logger.log: "RTC synced from ESP/NTP time via MQTT command"
+      - delay: 200ms
+      - switch.turn_off: rtc_sync_now
+
+# Publishes one relay's schedule as a retained JSON state message, e.g.
+#   blueos/relay/schedule/relay_1/state -> {"enabled":true,"on":"06:00","off":"18:00","days":"1111111"}
+# Called after every schedule.../set update and once on every MQTT (re)connect
+# so blueos-site-ui always has a current, authoritative copy to render.
+script:
+  - id: publish_relay_schedule
+    parameters:
+      index: int
+    then:
+      - lambda: |-
+          static const char *topics[blueos_schedule::NUM_RELAYS] = {
+            "blueos/relay/schedule/relay_1/state",
+            "blueos/relay/schedule/relay_2/state",
+            "blueos/relay/schedule/relay_3/state",
+            "blueos/relay/schedule/relay_4/state",
+            "blueos/relay/schedule/relay_5/state",
+            "blueos/relay/schedule/relay_6/state",
+          };
+          if (index < 0 || index >= blueos_schedule::NUM_RELAYS) return;
+          auto sc = blueos_schedule::schedules()[index];
+          std::string topic = topics[index];
+          id(mqtt_client).publish_json(topic, [sc](JsonObject root) {
+            root["enabled"] = sc.enabled;
+            root["on"] = blueos_schedule::format_hhmm(sc.on_min);
+            root["off"] = blueos_schedule::format_hhmm(sc.off_min);
+            root["days"] = blueos_schedule::days_to_string(sc.days_mask);
+          }, 0, true);
+
+# Edge-triggered schedule engine: evaluates all 6 relays against
+# id(rtc_time).now() every 15s and only calls switch.turn_on/turn_off when the
+# scheduled on/off window transitions. This means a manual MQTT override
+# (blueos/relay/switch/relay_<N>/command) between two scheduled edges is left
+# alone — the scheduler doesn't re-assert state every tick.
+interval:
+  - interval: 15s
+    then:
+      - lambda: |-
+          auto t = id(rtc_time).now();
+          if (!t.is_valid()) return;
+          int minute_of_day = t.hour * 60 + t.minute;
+          std::array<switch_::Switch *, blueos_schedule::NUM_RELAYS> relays = {
+            id(relay_1), id(relay_2), id(relay_3), id(relay_4), id(relay_5), id(relay_6),
+          };
+          static std::array<bool, blueos_schedule::NUM_RELAYS> last_should_be_on = {
+            false, false, false, false, false, false,
+          };
+          static bool first_run = true;
+          for (int i = 0; i < blueos_schedule::NUM_RELAYS; i++) {
+            const auto &sc = blueos_schedule::schedules()[i];
+            bool want_on = blueos_schedule::should_be_on(sc, minute_of_day, t.day_of_week);
+            if (want_on != last_should_be_on[i] || first_run) {
+              last_should_be_on[i] = want_on;
+              // Only actuate on a real edge (skip the very first evaluation
+              // after boot unless the relay is already in the wrong state,
+              // so a reboot mid-window doesn't force an unwanted toggle).
+              if (!first_run || relays[i]->state != want_on) {
+                if (want_on) relays[i]->turn_on(); else relays[i]->turn_off();
+              }
+            }
+          }
+          first_run = false;
 
 output:
   - platform: ledc
