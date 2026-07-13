@@ -268,14 +268,13 @@ class Handler(BaseHTTPRequestHandler):
         if path.rstrip("/") == "/register_service":
             self._send_json(
                 {
-                    "name": "ESPHome Site",
+                    "name": "ESP Setup",
                     "description": (
-                        "ESPHome Device Builder with bundled blueos-relay YAML, "
-                        "Beacon MQTT hostname inject, and USB/OTA flash wizard."
+                        "Set up Wi‑Fi and mailbox for your ESP32 relay board, then flash it."
                     ),
                     "icon": "mdi-chip",
                     "company": "Community",
-                    "version": "0.2.1",
+                    "version": "0.3.0",
                     "webpage": "https://github.com/vshie/blueos-site-esphome",
                     "api": "https://github.com/vshie/blueos-site-esphome/blob/main/README.md",
                     "new_page": False,

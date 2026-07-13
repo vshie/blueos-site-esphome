@@ -37,14 +37,13 @@ function populateBeacon(status) {
   if (beacon.available) {
     setStatusLine(
       line,
-      `Beacon reports hostname "${beacon.hostname}" → suggested broker "${beacon.candidates[0]}"`,
+      `Found BlueOS as “${beacon.hostname}” — suggested mailbox “${beacon.candidates[0]}”`,
       "ok"
     );
   } else {
     setStatusLine(
       line,
-      `Could not reach Beacon at ${beacon.source} (${beacon.error || "unknown error"}). ` +
-        `Enter the broker manually (e.g. a static IP) below.`,
+      `Couldn’t auto-detect BlueOS (${beacon.error || "unreachable"}). Type the Pi’s name or IP below.`,
       "warn"
     );
   }
@@ -54,8 +53,7 @@ function populateSecrets(status) {
   const { current } = status;
   const line = el("secrets-status");
   const parts = [];
-  parts.push(current.api_encryption_key_set ? "API key: set" : "API key: will be generated");
-  parts.push(current.ota_password_set ? "OTA password: set" : "OTA password: will be generated");
+  parts.push(current.api_encryption_key_set ? "Security keys: ready" : "Security keys: will be created on save");
   setStatusLine(line, parts.join(" · "), current.api_encryption_key_set && current.ota_password_set ? "ok" : "warn");
 
   el("wifi-ssid").value = current.wifi_ssid || "";
@@ -69,11 +67,11 @@ function populateUsb(status) {
   const line = el("usb-status");
   const found = [...(usb.by_id || []), ...(usb.ports || [])];
   if (found.length > 0) {
-    setStatusLine(line, `Serial device(s) detected: ${found.join(", ")}`, "ok");
+    setStatusLine(line, `USB board detected: ${found.join(", ")}`, "ok");
   } else {
     setStatusLine(
       line,
-      "No USB serial device detected. Plug the ESP32 into a USB port on the BlueOS Pi for first flash, or use OTA if it's already on the network.",
+      "No USB board seen. Plug the ESP32 into the Pi for a first flash, or use over-the-air install if it’s already on Wi‑Fi.",
       "warn"
     );
   }
@@ -116,7 +114,7 @@ async function save() {
     }
     setStatusLine(
       result,
-      `Saved. Broker=${data.mqtt_broker || "(unset)"} · secrets.yaml + blueos-relay.yaml ready in ${data.yaml_path}`,
+      `Saved. Mailbox=${data.mqtt_broker || "(unset)"}. Next: flash the board in step 4.`,
       "ok"
     );
     el("wifi-password").value = "";

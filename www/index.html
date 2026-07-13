@@ -3,77 +3,121 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BlueOS ESPHome — blueos-relay setup</title>
+<title>Set up your ESP board</title>
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>ESPHome Device Builder <span class="pill">blueos-relay</span></h1>
-      <p class="sub">Factory project for the Waveshare ESP32-S3-Relay-6CH + Pico-RTC-DS3231, pre-wired for BlueOS MQTT.</p>
+      <p class="eyebrow">ESPHome Site</p>
+      <h1>Set up your relay board</h1>
+      <p class="sub">
+        Tell the ESP32 which Wi‑Fi to join and which BlueOS computer is its mailbox,
+        then flash it. After that, control relays from <strong>Site UI</strong>.
+      </p>
     </header>
 
-    <section class="card" id="beacon-card">
-      <h2>1. MQTT broker (from BlueOS Beacon)</h2>
+    <section class="panel flow-panel">
+      <h2>The big picture</h2>
+      <div class="flow" aria-hidden="true">
+        <svg viewBox="0 0 720 170" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#0d7a6f"/>
+            </marker>
+          </defs>
+          <rect x="16" y="30" width="150" height="110" rx="14" fill="#e6f4f2" stroke="#0d7a6f" stroke-width="2"/>
+          <text x="91" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#14201c">This wizard</text>
+          <text x="91" y="82" text-anchor="middle" font-size="12" fill="#5a6b64">Wi‑Fi + mailbox</text>
+          <text x="91" y="104" text-anchor="middle" font-size="12" fill="#5a6b64">save settings</text>
+
+          <line x1="166" y1="85" x2="220" y2="85" stroke="#0d7a6f" stroke-width="2.5" marker-end="url(#a)"/>
+
+          <rect x="225" y="30" width="160" height="110" rx="14" fill="#fff4e5" stroke="#b86a00" stroke-width="2"/>
+          <text x="305" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#14201c">ESP32 board</text>
+          <text x="305" y="82" text-anchor="middle" font-size="12" fill="#5a6b64">6 relays · RTC clock</text>
+          <rect x="258" y="98" width="22" height="12" rx="2" fill="#0d7a6f"/>
+          <rect x="286" y="98" width="22" height="12" rx="2" fill="#0d7a6f"/>
+          <rect x="314" y="98" width="22" height="12" rx="2" fill="#0d7a6f"/>
+          <rect x="342" y="98" width="22" height="12" rx="2" fill="#24352f" opacity=".35"/>
+
+          <line x1="385" y1="85" x2="440" y2="85" stroke="#0d7a6f" stroke-width="2.5" marker-end="url(#a)"/>
+          <text x="412" y="72" text-anchor="middle" font-size="11" fill="#0d7a6f" font-weight="600">Wi‑Fi</text>
+
+          <rect x="445" y="30" width="120" height="110" rx="14" fill="#e8eef5" stroke="#3a5f8a" stroke-width="2"/>
+          <text x="505" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#14201c">BlueOS</text>
+          <text x="505" y="100" text-anchor="middle" font-size="12" fill="#5a6b64">Site Stack</text>
+
+          <line x1="565" y1="85" x2="610" y2="85" stroke="#0d7a6f" stroke-width="2.5" marker-end="url(#a)"/>
+
+          <rect x="615" y="45" width="90" height="80" rx="14" fill="#14201c"/>
+          <text x="660" y="88" text-anchor="middle" font-size="13" font-weight="700" fill="#e6f4f2">Site UI</text>
+        </svg>
+      </div>
       <p class="hint">
-        Reads the <em>live</em> BlueOS mDNS hostname via Beacon
-        (<code>GET /v1.0/hostname</code>) instead of a hardcoded <code>blueos.local</code>.
-        Rename your vehicle in BlueOS and re-run this step — no reflash of firmware needed.
+        Same Wi‑Fi as the Pi. Messages use a simple naming scheme
+        (<code>blueos/relay/…</code> so Site Stack and Site UI find the board automatically.
+      </p>
+    </section>
+
+    <section class="card" id="beacon-card">
+      <div class="step-head"><span class="n">1</span><h2>Find this BlueOS computer</h2></div>
+      <p class="hint">
+        We ask BlueOS for its current name on the network (Beacon). That becomes the
+        board’s <em>mailbox address</em> — not a hard-coded <code>blueos.local</code>.
       </p>
       <div id="beacon-status" class="status-line">Detecting…</div>
-      <label>MQTT broker</label>
+      <label>Mailbox (MQTT broker)</label>
       <div class="row">
-        <select id="broker-select"></select>
-        <input id="broker-custom" type="text" placeholder="or type a hostname / IP override" />
-        <button id="refresh-beacon" class="secondary">Detect again</button>
+        <select id="broker-select" aria-label="Suggested mailbox names"></select>
+        <input id="broker-custom" type="text" placeholder="Or type a hostname / IP" />
+        <button type="button" id="refresh-beacon" class="secondary">Detect again</button>
       </div>
-      <p class="hint">Static IP fallback (e.g. <code>192.168.1.113</code>) is useful if mDNS is unreliable on the site Wi‑Fi.</p>
     </section>
 
     <section class="card">
-      <h2>2. Wi‑Fi credentials</h2>
-      <p class="hint">Same network as the BlueOS host / Pi. Written once into <code>secrets.yaml</code> on the extension's persistent volume.</p>
-      <label>SSID</label>
-      <input id="wifi-ssid" type="text" placeholder="Site Wi‑Fi network name" />
+      <div class="step-head"><span class="n">2</span><h2>Join the site Wi‑Fi</h2></div>
+      <p class="hint">Must be the same network the BlueOS Pi uses.</p>
+      <label>Network name (SSID)</label>
+      <input id="wifi-ssid" type="text" placeholder="Your Wi‑Fi name" autocomplete="off" />
       <label>Password</label>
-      <input id="wifi-password" type="password" placeholder="Leave blank to keep existing" />
+      <input id="wifi-password" type="password" placeholder="Leave blank to keep the saved one" autocomplete="new-password" />
     </section>
 
     <section class="card">
-      <h2>3. API / OTA secrets</h2>
-      <p class="hint">Random per-device secrets used by ESPHome's native API and OTA updates. Generated automatically the first time you save — regenerate only if you suspect they leaked.</p>
+      <div class="step-head"><span class="n">3</span><h2>Save settings</h2></div>
+      <p class="hint">Writes Wi‑Fi + mailbox into the board project. Security keys are created automatically the first time.</p>
       <div id="secrets-status" class="status-line">Checking…</div>
-      <label class="checkbox"><input id="regen-api" type="checkbox" /> Regenerate API encryption key</label>
-      <label class="checkbox"><input id="regen-ota" type="checkbox" /> Regenerate OTA password</label>
-    </section>
-
-    <section class="card">
-      <button id="save-btn" class="primary">Save configuration</button>
+      <button type="button" id="save-btn" class="primary">Save configuration</button>
       <span id="save-result" class="status-line"></span>
+      <details class="adv">
+        <summary>Advanced — regenerate security keys</summary>
+        <p class="hint">Only if you think keys leaked. You’ll need to re-flash / re-pair afterward.</p>
+        <label class="checkbox"><input id="regen-api" type="checkbox" /> New API encryption key</label>
+        <label class="checkbox"><input id="regen-ota" type="checkbox" /> New OTA password</label>
+      </details>
     </section>
 
     <section class="card" id="usb-card">
-      <h2>4. Flash the ESP32</h2>
-      <div id="usb-status" class="status-line">Checking for USB serial devices…</div>
-      <p class="hint">
-        <strong>First flash (blank board):</strong> plug the ESP32 directly into a USB port on the BlueOS Pi,
-        then click <em>Refresh</em> below. USB‑JTAG can be flaky on some boards — if the port
-        doesn't show up, unplug/replug or try a different USB cable/port.
-      </p>
-      <p class="hint">
-        <strong>Already flashed (e.g. running at a known IP):</strong> no USB needed — use
-        <em>OTA</em> install from the dashboard by targeting the device's hostname or IP; it
-        uses the <code>ota_password</code> / <code>api_encryption_key</code> saved above.
-      </p>
-      <button id="refresh-usb" class="secondary">Refresh USB devices</button>
-      <button id="open-dashboard" class="primary">Open ESPHome Dashboard →</button>
+      <div class="step-head"><span class="n">4</span><h2>Install on the board</h2></div>
+      <div id="usb-status" class="status-line">Checking for USB…</div>
+      <div class="callout">
+        <strong>First time?</strong> Plug the ESP32 into a USB port on the Pi, then refresh.
+        Open the dashboard and install to the USB port.
+      </div>
+      <div class="callout soft">
+        <strong>Already on Wi‑Fi?</strong> No cable needed — install over the air (OTA) to the board’s
+        name or IP from the dashboard.
+      </div>
+      <button type="button" id="refresh-usb" class="secondary">Refresh USB</button>
+      <button type="button" id="open-dashboard" class="primary">Open install dashboard →</button>
     </section>
 
     <footer>
       <p>
-        Topic prefix <code id="topic-prefix">blueos/relay</code> is shared with
-        <code>blueos-site-stack</code> (Mosquitto/Influx) and <code>blueos-site-ui</code>
-        (Grafana + relay control page). Config directory: <code id="config-dir">/config</code>.
+        Project <code>blueos-relay</code> · topics under
+        <code id="topic-prefix">blueos/relay</code> · files in
+        <code id="config-dir">/config</code>
       </p>
     </footer>
   </div>
