@@ -159,10 +159,20 @@ never starts from a blank ESPHome project:
   `blueos-site-ui` can show a status/debug table without extra tooling
 - `RTC Read from DS3231` / `RTC Write from ESP time` buttons for manual sync
 - MQTT `topic_prefix: blueos/relay` — **coordinated with `blueos-site-stack`
-  (Telegraf topic subscription) and `blueos-site-ui` (control page / Grafana
+  (Telegraf topic subscription pattern `blueos/+/sensor|switch|binary_sensor/+/state`
+  and `blueos/+/status`) and `blueos-site-ui` (control page / Grafana
   datasource)**. Don't change this without updating those extensions too.
 - `mqtt.broker: !secret mqtt_broker` — filled by this extension's wizard, not
   hardcoded
+
+> **Note:** `blueos-site-stack`'s Telegraf only subscribes to
+> `sensor`/`switch`/`binary_sensor`/`status` topics for InfluxDB history (see
+> its `config/telegraf.conf`) — `text_sensor` values like `RTC DateTime` and
+> `Firmware Version` are **not** historized in Influx by default. They're
+> still visible over MQTT (and the ESPHome native API / web_server) for
+> `blueos-site-ui` to display live, just not graphed. Add an
+> `inputs.mqtt_consumer` block for `+/text_sensor/+/state` in that repo if you
+> want them in Influx too.
 
 This same YAML is developed alongside `BlueOS-HA-node/esphome/blueos-relay.yaml`
 on the workstation repo; the `RTC DateTime` sensor added here has been synced
