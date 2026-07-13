@@ -51,6 +51,24 @@ Saving writes `/config/secrets.yaml` (bind-mounted, persists across container
 restarts/updates) and seeds `/config/blueos-relay.yaml` from the bundled
 factory project if it isn't already there.
 
+## Faster first flash (pre-warmed image)
+
+The published image **compiles `blueos-relay` once during CI** so that:
+
+1. **PlatformIO / ESP-IDF toolchains** live in the image (`~/.platformio`) — no
+   multi‑GB download on the Pi.
+2. A **seed `.esphome` build cache** is copied into `/config/.esphome` on first
+   start of an empty volume.
+
+On the Pi, Install then does a short incremental rebuild (your real Wi‑Fi /
+API secrets differ from the CI placeholders) and uploads — typically minutes,
+not 20–40. Tradeoff: larger Docker image and longer GitHub Actions builds
+(especially `linux/arm64` under QEMU). After updating the extension, wipe
+`/usr/blueos/extensions/esphome/.esphome` only if you want to re-seed from the
+image.
+
+Set Docker build-arg `PREWARM=0` to skip (smaller/faster CI, slow first Pi compile).
+
 Re-running the wizard after renaming the vehicle in BlueOS re-injects the new
 hostname — no reflash required if the device is already reachable
 (OTA picks up the new broker on its next boot/reconnect once you push the
