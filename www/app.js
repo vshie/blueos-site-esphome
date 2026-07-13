@@ -2,6 +2,22 @@ const el = (id) => document.getElementById(id);
 
 let lastStatus = null;
 
+// BlueOS sidebar serves under /extensionv2/<name>/ — absolute "/api/…" 404s on core.
+function extBase() {
+  const path = location.pathname;
+  const m = path.match(/^(.*?\/extensionv2\/[^/]+\/)/);
+  if (m) return m[1];
+  if (path.endsWith("/")) return path;
+  if (/\.[a-zA-Z0-9]+$/.test(path.split("/").pop() || "")) {
+    return path.replace(/\/[^/]*$/, "/");
+  }
+  return path + "/";
+}
+const BASE = extBase();
+function api(path) {
+  return BASE + String(path).replace(/^\//, "");
+}
+
 function setStatusLine(node, text, cls) {
   node.textContent = text;
   node.className = "status-line" + (cls ? ` ${cls}` : "");
@@ -78,7 +94,7 @@ function populateUsb(status) {
 }
 
 async function loadStatus() {
-  const res = await fetch("/api/status");
+  const res = await fetch(api("api/status"));
   const status = await res.json();
   lastStatus = status;
   populateBeacon(status);
@@ -102,7 +118,7 @@ async function save() {
   };
   setStatusLine(result, "Saving…", "");
   try {
-    const res = await fetch("/api/configure", {
+    const res = await fetch(api("api/configure"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

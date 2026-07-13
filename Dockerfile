@@ -40,7 +40,7 @@ EXPOSE 80/tcp 6052/tcp
 
 VOLUME /config
 
-LABEL version="0.3.0"
+LABEL version="0.3.1"
 LABEL type="other"
 LABEL tags='["esphome","mqtt","flash","ota","relay","iot"]'
 LABEL requirements="core >= 1.1"
