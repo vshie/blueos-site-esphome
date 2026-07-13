@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BlueOS ESPHome — blueos-relay setup</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>ESPHome Device Builder <span class="pill">blueos-relay</span></h1>
+      <p class="sub">Factory project for the Waveshare ESP32-S3-Relay-6CH + Pico-RTC-DS3231, pre-wired for BlueOS MQTT.</p>
+    </header>
+
+    <section class="card" id="beacon-card">
+      <h2>1. MQTT broker (from BlueOS Beacon)</h2>
+      <p class="hint">
+        Reads the <em>live</em> BlueOS mDNS hostname via Beacon
+        (<code>GET /v1.0/hostname</code>) instead of a hardcoded <code>blueos.local</code>.
+        Rename your vehicle in BlueOS and re-run this step — no reflash of firmware needed.
+      </p>
+      <div id="beacon-status" class="status-line">Detecting…</div>
+      <label>MQTT broker</label>
+      <div class="row">
+        <select id="broker-select"></select>
+        <input id="broker-custom" type="text" placeholder="or type a hostname / IP override" />
+        <button id="refresh-beacon" class="secondary">Detect again</button>
+      </div>
+      <p class="hint">Static IP fallback (e.g. <code>192.168.1.113</code>) is useful if mDNS is unreliable on the site Wi‑Fi.</p>
+    </section>
+
+    <section class="card">
+      <h2>2. Wi‑Fi credentials</h2>
+      <p class="hint">Same network as the BlueOS host / Pi. Written once into <code>secrets.yaml</code> on the extension's persistent volume.</p>
+      <label>SSID</label>
+      <input id="wifi-ssid" type="text" placeholder="Site Wi‑Fi network name" />
+      <label>Password</label>
+      <input id="wifi-password" type="password" placeholder="Leave blank to keep existing" />
+    </section>
+
+    <section class="card">
+      <h2>3. API / OTA secrets</h2>
+      <p class="hint">Random per-device secrets used by ESPHome's native API and OTA updates. Generated automatically the first time you save — regenerate only if you suspect they leaked.</p>
+      <div id="secrets-status" class="status-line">Checking…</div>
+      <label class="checkbox"><input id="regen-api" type="checkbox" /> Regenerate API encryption key</label>
+      <label class="checkbox"><input id="regen-ota" type="checkbox" /> Regenerate OTA password</label>
+    </section>
+
+    <section class="card">
+      <button id="save-btn" class="primary">Save configuration</button>
+      <span id="save-result" class="status-line"></span>
+    </section>
+
+    <section class="card" id="usb-card">
+      <h2>4. Flash the ESP32</h2>
+      <div id="usb-status" class="status-line">Checking for USB serial devices…</div>
+      <p class="hint">
+        <strong>First flash (blank board):</strong> plug the ESP32 directly into a USB port on the BlueOS Pi,
+        then click <em>Refresh</em> below. USB‑JTAG can be flaky on some boards — if the port
+        doesn't show up, unplug/replug or try a different USB cable/port.
+      </p>
+      <p class="hint">
+        <strong>Already flashed (e.g. running at a known IP):</strong> no USB needed — use
+        <em>OTA</em> install from the dashboard by targeting the device's hostname or IP; it
+        uses the <code>ota_password</code> / <code>api_encryption_key</code> saved above.
+      </p>
+      <button id="refresh-usb" class="secondary">Refresh USB devices</button>
+      <button id="open-dashboard" class="primary">Open ESPHome Dashboard →</button>
+    </section>
+
+    <footer>
+      <p>
+        Topic prefix <code id="topic-prefix">blueos/relay</code> is shared with
+        <code>blueos-site-stack</code> (Mosquitto/Influx) and <code>blueos-site-ui</code>
+        (Grafana + relay control page). Config directory: <code id="config-dir">/config</code>.
+      </p>
+    </footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

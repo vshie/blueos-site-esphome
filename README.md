@@ -1,0 +1,220 @@
+# BlueOS ESPHome — Device Builder + `blueos-relay` factory project
+
+A BlueOS extension that bundles the **ESPHome Device Builder** (compile / OTA /
+USB-flash UI) together with a ready-to-go **`blueos-relay`** project for the
+Waveshare **ESP32-S3-Relay-6CH** + **Pico-RTC-DS3231**. Install this only when
+you need to flash or reconfigure that board — it is not required for runtime
+relay control or telemetry (that's `blueos-site-stack` + `blueos-site-ui`).
+
+```text
+blueos-site-esphome (this extension)
+  ├─ ESPHome Device Builder dashboard  :6052  — compile / USB flash / OTA install
+  └─ BlueOS setup wizard               :80    — Beacon hostname → MQTT broker,
+                                                 Wi-Fi credentials, API/OTA secrets
+```
+
+## Why this exists
+
+Operators should never hand-edit a broker IP into firmware. The factory YAML
+uses `!secret mqtt_broker`, and the wizard fills that secret from the **live**
+BlueOS hostname — never a hardcoded `blueos.local`.
+
+## Setup wizard (Beacon hostname injection)
+
+Open the extension ("Open" in BlueOS Extensions → this image) to reach the
+wizard on port 80:
+
+1. **MQTT broker** — the wizard calls BlueOS **Beacon** at
+   `http://host.docker.internal:9111/v1.0/hostname` (reachable via the
+   `ExtraHosts: host.docker.internal:host-gateway` permission, same pattern as
+   `blueos-mosquitto` / `blueos-influxdb`). Beacon's `GET /v1.0/hostname`
+   returns the vehicle's current mDNS label (default `blueos`, or whatever the
+   operator renamed it to in BlueOS → Vehicle setup) as a bare JSON string. The
+   wizard proposes `{hostname}.local` as the broker, and also queries
+   `GET /v1.0/services` to look for a Wi‑Fi-specific advertised name
+   (`{hostname}-wifi.local`) since the ESP joins the site Wi‑Fi, not a wired
+   link. Both show up in a dropdown; a free-text field lets you override with
+   a static IP (e.g. `192.168.1.113`) if mDNS is unreliable on that LAN —
+   Beacon's own `/v1.0/ip` endpoint only resolves a caller's *own* interface
+   IP through BlueOS's nginx proxy headers, so it isn't a reliable way to
+   guess the Pi's LAN IP from inside a container; a manual override is the
+   correct fallback here.
+2. **Wi‑Fi SSID / password** — the one thing that can't be auto-detected;
+   typed once into the wizard.
+3. **API / OTA secrets** — `api_encryption_key` (32 random bytes, base64) and
+   `ota_password` (random hex) are generated automatically the first time you
+   save, and kept stable afterwards unless you explicitly check "regenerate".
+
+Saving writes `/config/secrets.yaml` (bind-mounted, persists across container
+restarts/updates) and seeds `/config/blueos-relay.yaml` from the bundled
+factory project if it isn't already there.
+
+Re-running the wizard after renaming the vehicle in BlueOS re-injects the new
+hostname — no reflash required if the device is already reachable
+(OTA picks up the new broker on its next boot/reconnect once you push the
+updated config).
+
+## Flashing
+
+### First flash (blank / new board) — USB required
+
+1. Plug the ESP32 directly into a **USB port on the BlueOS Pi** (not your
+   laptop) — the extension flashes from *inside* the Pi's Docker network.
+2. In the wizard, click **Refresh USB devices**. The ESP32-S3's native
+   USB-CDC typically shows up as `/dev/ttyACM0`; USB-JTAG mode has been flaky
+   on some boards in testing — unplug/replug or try another port/cable if
+   nothing appears.
+3. Click **Open ESPHome Dashboard →**, pick `blueos-relay.yaml`, and use
+   **Install** with the detected serial port.
+
+### Reconfigure / re-flash an already-running device — OTA, no USB
+
+If the ESP is already on the network (e.g. the test unit at `192.168.1.166`),
+save the wizard config, open the dashboard, and **Install** targeting `OTA`
+(or the device's IP/hostname directly) — no USB, no Pi access needed. This is
+the expected path for most day-2 changes (Wi‑Fi password rotation, broker
+rename after a BlueOS hostname change, YAML tweaks).
+
+## USB permissions
+
+The ESP32-S3's serial device node isn't predictable ahead of time (varies by
+hub, board revision, and hotplug order — could be `/dev/ttyACM0`,
+`/dev/ttyUSB0`, etc.), so this extension requests:
+
+```json
+"HostConfig": {
+  "Privileged": true,
+  "Binds": ["/dev:/dev"]
+}
+```
+
+This grants the container access to whatever serial device shows up, rather
+than guessing a fixed path. **OTA reflashing needs none of this** — only
+first-flash-over-USB does. If your BlueOS security posture disallows
+`Privileged`, you can still use the extension purely for the wizard + OTA path
+and drop that permission (edit the extension's custom settings after install).
+
+## Manual install on BlueOS
+
+Open BlueOS → **Extensions** → **Installed** → **+** and fill:
+
+| Field | Value |
+|-------|--------|
+| **Extension Identifier** | `vshie.esphome` |
+| **Extension Name** | `ESPHome Device Builder` |
+| **Docker image** | `vshie/blueos-site-esphome` |
+| **Docker tag** | `main` |
+
+**Custom settings** — paste verbatim:
+
+```json
+{
+  "ExposedPorts": {
+    "80/tcp": {},
+    "6052/tcp": {}
+  },
+  "HostConfig": {
+    "Privileged": true,
+    "ExtraHosts": ["host.docker.internal:host-gateway"],
+    "PortBindings": {
+      "80/tcp": [
+        {
+          "HostPort": ""
+        }
+      ],
+      "6052/tcp": [
+        {
+          "HostPort": "6052"
+        }
+      ]
+    },
+    "Binds": [
+      "/usr/blueos/extensions/esphome:/config",
+      "/dev:/dev"
+    ]
+  }
+}
+```
+
+Then open the extension's status page (port 80) to run the setup wizard, and
+`http://<blueos-ip>:6052` for the ESPHome dashboard directly.
+
+## Ports
+
+| Port | Binding | Use |
+|------|---------|-----|
+| `80` | Dynamic | BlueOS setup wizard (Beacon inject, Wi‑Fi, secrets) |
+| `6052` | Host `6052` | ESPHome Device Builder dashboard (compile/flash/OTA/logs) |
+
+## Bundled project — `blueos-relay.yaml`
+
+Waveshare ESP32-S3-Relay-6CH + Pico-RTC-DS3231, pre-filled so the operator
+never starts from a blank ESPHome project:
+
+- 6× relay switches, boot button, buzzer, status RGB LED
+- DS3231 RTC via `ds1307` platform (I2C `GPIO4`/`GPIO5`) — offline clock of
+  record; SNTP writes wall time back to the chip when online
+- `RTC Temperature` template sensor (chip's onboard temp register)
+- `RTC DateTime` template text sensor (human-readable wall time) — added so
+  `blueos-site-ui` can show a status/debug table without extra tooling
+- `RTC Read from DS3231` / `RTC Write from ESP time` buttons for manual sync
+- MQTT `topic_prefix: blueos/relay` — **coordinated with `blueos-site-stack`
+  (Telegraf topic subscription) and `blueos-site-ui` (control page / Grafana
+  datasource)**. Don't change this without updating those extensions too.
+- `mqtt.broker: !secret mqtt_broker` — filled by this extension's wizard, not
+  hardcoded
+
+This same YAML is developed alongside `BlueOS-HA-node/esphome/blueos-relay.yaml`
+on the workstation repo; the `RTC DateTime` sensor added here has been synced
+back there too.
+
+## Building / releasing
+
+| Platform | Hardware |
+|----------|----------|
+| `linux/arm64/v8` | Pi 4 (64-bit), **Pi 5** |
+| `linux/amd64` | Desktop / CI |
+| `linux/arm/v7` | **Not built** — the upstream `esphome/esphome` image dropped arm/v7 support (Pi 3B+ / 32-bit Pi 4 would need cross-compiling ESPHome's own toolchain, which is unrealistic to maintain here). Pi 3B+ users should use a 64-bit Pi 4/5 for this extension, or flash `blueos-relay.yaml` from a laptop with `esphome` installed directly. |
+
+**CI secrets:** https://github.com/vshie/blueos-site-esphome/settings/secrets/actions
+
+- `DOCKER_USERNAME` = `vshie`
+- `DOCKER_PASSWORD` = Docker Hub [access token](https://hub.docker.com/settings/security)
+
+Image: **`vshie/blueos-site-esphome:<tag>`**
+
+## Secrets — local dev, not committed
+
+`config/secrets.yaml` is git-ignored. Use `config/secrets.yaml.example` as the
+template; the wizard writes the real file onto the extension's persistent
+volume (`/usr/blueos/extensions/esphome/secrets.yaml` on the BlueOS host) at
+runtime. Never commit real Wi‑Fi credentials, API keys, or OTA passwords.
+
+## Provenance
+
+| Layer | Source |
+|-------|--------|
+| ESPHome + Device Builder dashboard | Official [`esphome/esphome`](https://hub.docker.com/r/esphome/esphome) image |
+| Setup wizard | This repo (Python stdlib + PyYAML, no extra deps) |
+| `blueos-relay.yaml` | This repo, developed alongside `BlueOS-HA-node/esphome/blueos-relay.yaml` |
+
+## Product stack alignment
+
+See workstation `BlueOS-HA-node/PLAN.md`. Operator-facing target:
+
+1. `blueos-site-stack` — Mosquitto + InfluxDB + Telegraf
+2. `blueos-site-ui` — Grafana + relay control page (publishes to
+   `blueos/relay/switch/relay_*/command`, expects `blueos/relay/status`,
+   `blueos/relay/sensor/rtc_temperature/state`, and now
+   `blueos/relay/sensor/rtc_datetime/state`)
+3. **`blueos-site-esphome`** (this repo) — Device Builder + bundled
+   `blueos-relay` + Beacon hostname inject + USB prompt
+
+Only install this extension when flashing/onboarding hardware; leave it
+uninstalled (or stopped) the rest of the time to save Pi resources — ESPHome's
+toolchain image is large.
+
+## License
+
+Packaging: community BlueOS extension conventions. ESPHome: upstream
+ESPHome license (MIT-style, see [esphome/esphome](https://github.com/esphome/esphome)).

@@ -1,0 +1,104 @@
+:root {
+  --bg: #0e1620;
+  --card: #16212c;
+  --border: #24333f;
+  --text: #d8e3ea;
+  --muted: #8ba0ae;
+  --accent: #2fb4a8;
+  --accent-strong: #1f9c92;
+  --warn: #d99a3b;
+  --danger: #d95f5f;
+  --ok: #4cbf7a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+header h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill {
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #06201d;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.sub { color: var(--muted); margin-top: 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+.card h2 { margin-top: 0; font-size: 17px; }
+
+.hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+label { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
+label.checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
+label.checkbox input { margin: 0; }
+
+input[type="text"], input[type="password"], select {
+  width: 100%;
+  padding: 10px 12px;
+  background: #0c141c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.row select { flex: 1; }
+.row input[type="text"] { flex: 1.4; }
+
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  margin-right: 8px;
+}
+
+button.primary { background: var(--accent); color: #06201d; }
+button.primary:hover { background: var(--accent-strong); }
+button.secondary { background: #1e2c38; color: var(--text); border: 1px solid var(--border); }
+button.secondary:hover { background: #263745; }
+
+.status-line { display: block; font-size: 13px; margin: 8px 0; color: var(--muted); }
+.status-line.ok { color: var(--ok); }
+.status-line.warn { color: var(--warn); }
+.status-line.err { color: var(--danger); }
+
+footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
+code { background: #0c141c; padding: 1px 6px; border-radius: 4px; }

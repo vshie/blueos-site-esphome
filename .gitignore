@@ -1,0 +1,8 @@
+# Real secrets / local ESPHome build state — never commit
+config/secrets.yaml
+.esphome/
+*.pyc
+__pycache__/
+
+# OS / editor cruft
+.DS_Store
