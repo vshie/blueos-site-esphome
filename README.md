@@ -4,7 +4,9 @@ A BlueOS extension that bundles the **ESPHome Device Builder** (compile / OTA /
 USB-flash UI) together with a ready-to-go **`blueos-relay`** project for the
 Waveshare **ESP32-S3-Relay-6CH** + **Pico-RTC-DS3231**. Install this only when
 you need to flash or reconfigure that board — it is not required for runtime
-relay control or telemetry (that's `blueos-site-stack` + `blueos-site-ui`).
+relay control or telemetry. **Pair with [Site Steward](https://github.com/vshie/blueos-site-steward)**
+(`vshie/blueos-site-steward`), which is the merged replacement for the older
+`blueos-site-stack` + `blueos-site-ui` extensions.
 
 ```text
 blueos-site-esphome (this extension)
@@ -185,7 +187,7 @@ What each piece does:
 
 1. Click **Open** on the extension → setup wizard (Beacon broker + Wi‑Fi + secrets).
 2. Dashboard: `http://<blueos-ip>:6052`
-3. Safe to run alongside **`blueos-site-stack`**: stack owns `1883` / `9001` / `8086`; this extension owns `6052` (+ a dynamic wizard port). No port overlap.
+3. Safe to run alongside **[Site Steward](https://github.com/vshie/blueos-site-steward)**: Steward owns `1883` / `9001` / `8086` / `3000` and a dynamic portal port; this extension owns `6052` (+ a dynamic wizard port). No port overlap.
 
 ## Ports
 
@@ -210,17 +212,17 @@ never starts from a blank ESPHome project:
   writes on the ESP side.
 - `RTC Temperature` template sensor (chip's onboard temp register)
 - `RTC Epoch` template sensor (Unix seconds from the RTC-backed system
-  clock) — consumed by `blueos-site-stack`'s time-from-RTC sidecar and
+  clock) — consumed by Site Steward's time-from-RTC sidecar and
   graphable in Grafana
 - `RTC DateTime` template text sensor (human-readable wall time) — added so
-  `blueos-site-ui` can show a status/debug table without extra tooling
+  Site Steward's Controls tab can show a status/debug table without extra tooling
 - `RTC Sync Now` momentary switch (MQTT-controllable; native `button:`
   entities have no MQTT topic) and `RTC Read from DS3231` / `RTC Write from
   ESP time` buttons (API/web_server only) for manual sync
-- MQTT `topic_prefix: blueos/relay` — **coordinated with `blueos-site-stack`
+- MQTT `topic_prefix: blueos/relay` — **coordinated with Site Steward
   (Telegraf topic subscription pattern `blueos/+/sensor|switch|binary_sensor/+/state`
-  and `blueos/+/status`) and `blueos-site-ui` (control page / Grafana
-  datasource)**. Don't change this without updating those extensions too.
+  and `blueos/+/status`, plus the portal / Grafana datasource)**. Don't change
+  this without updating Site Steward too.
 - `mqtt.broker: !secret mqtt_broker` — filled by this extension's wizard, not
   hardcoded
 - `schedule.h` (bundled alongside `blueos-relay.yaml`, referenced via
@@ -236,7 +238,7 @@ durable copy, replayed to the device on every reconnect/reboot):
 
 | Topic | Direction | Payload |
 |-------|-----------|---------|
-| `blueos/relay/schedule/relay_<N>/set` | site-ui → ESP (retain) | `{"enabled":bool,"on":"HH:MM","off":"HH:MM","days":"SMTWTFS"}` |
+| `blueos/relay/schedule/relay_<N>/set` | Site Steward → ESP (retain) | `{"enabled":bool,"on":"HH:MM","off":"HH:MM","days":"SMTWTFS"}` |
 | `blueos/relay/schedule/relay_<N>/state` | ESP → broker (retain) | Same shape — echoed after every `/set` and on every MQTT (re)connect |
 
 `N` is `1`–`6`. `days` is a 7-character string, index 0 = Sunday .. index 6 =
@@ -267,15 +269,15 @@ Full topic map (unchanged entities + new ones from this iteration):
 > **ESPHome MQTT quirk:** all `text_sensor:` entities publish under the
 > `sensor` MQTT topic segment, not `text_sensor` — ESPHome's
 > `MQTTTextSensor` component registers itself with component type `"sensor"`
-> (see `esphome/components/mqtt/mqtt_text_sensor.cpp`). `blueos-site-ui`'s
-> device seed accounts for this.
+> (see `esphome/components/mqtt/mqtt_text_sensor.cpp`). Site Steward's device
+> seed accounts for this.
 
-> **Note:** `blueos-site-stack`'s Telegraf only subscribes to
+> **Note:** Site Steward's Telegraf only subscribes to
 > `sensor`/`switch`/`binary_sensor`/`status` topics for InfluxDB history (see
 > its `config/telegraf.conf`) — `text_sensor` values like `RTC DateTime` and
 > `Firmware Version` are **not** historized in Influx by default. They're
-> still visible over MQTT (and the ESPHome native API / web_server) for
-> `blueos-site-ui` to display live, just not graphed. Add an
+> still visible over MQTT (and the ESPHome native API / web_server) for the
+> Steward portal to display live, just not graphed. Add an
 > `inputs.mqtt_consumer` block for `+/text_sensor/+/state` in that repo if you
 > want them in Influx too.
 
@@ -321,13 +323,15 @@ runtime. Never commit real Wi‑Fi credentials, API keys, or OTA passwords.
 
 See workstation `BlueOS-HA-node/PLAN.md`. Operator-facing target:
 
-1. `blueos-site-stack` — Mosquitto + InfluxDB + Telegraf
-2. `blueos-site-ui` — Grafana + relay control page (publishes to
+1. **[Site Steward](https://github.com/vshie/blueos-site-steward)** — one
+   extension for Mosquitto + InfluxDB + Telegraf + Grafana + the tabbed portal
+   (Controls / System / Graphs). Publishes to
    `blueos/relay/switch/relay_*/command`, expects `blueos/relay/status`,
-   `blueos/relay/sensor/rtc_temperature/state`, and now
-   `blueos/relay/sensor/rtc_datetime/state`)
-3. **`blueos-site-esphome`** (this repo) — Device Builder + bundled
-   `blueos-relay` + Beacon hostname inject + USB prompt
+   `blueos/relay/sensor/rtc_temperature/state`, `blueos/relay/sensor/rtc_datetime/state`,
+   and consumes `blueos/relay/sensor/rtc_epoch/state` for offline time-sync.
+   Supersedes the deprecated `blueos-site-stack` + `blueos-site-ui` pair.
+2. **`blueos-site-esphome`** (this repo) — Device Builder + bundled
+   `blueos-relay` + Beacon hostname inject + USB prompt.
 
 Only install this extension when flashing/onboarding hardware; leave it
 uninstalled (or stopped) the rest of the time to save Pi resources — ESPHome's

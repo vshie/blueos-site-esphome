@@ -67,9 +67,9 @@ mqtt:
   discovery: false
   topic_prefix: blueos/relay
   # Schedule config channel — see "MQTT schedule schema" in
-  # blueos-site-ui/README.md. Broker retains the `/set` payload, so
+  # blueos-site-steward/README.md. Broker retains the `/set` payload, so
   # resubscribing on reconnect/reboot re-applies the last schedule saved by
-  # site-ui without any flash writes on the ESP side.
+  # Site Steward's portal without any flash writes on the ESP side.
   on_json_message:
     - topic: blueos/relay/schedule/relay_1/set
       then:
@@ -134,7 +134,7 @@ mqtt:
   on_connect:
     then:
       # Give the broker a moment to replay retained schedule/set messages
-      # before we echo back the state topics Site Controls can display.
+      # before we echo back the state topics Site Steward can display.
       - delay: 2s
       - lambda: |-
           for (int i = 0; i < blueos_schedule::NUM_RELAYS; i++) {
@@ -243,7 +243,7 @@ sensor:
       return raw * 0.25f;
 
   # Unix epoch seconds from the RTC-backed system clock — consumed by
-  # blueos-site-stack's time-from-RTC sidecar (host clock fallback when
+  # blueos-site-steward's time-from-RTC sidecar (host clock fallback when
   # there's no internet NTP) and graphable in Grafana alongside rtc_datetime.
   - platform: template
     name: "RTC Epoch"
@@ -272,7 +272,7 @@ text_sensor:
     mac_address:
       name: "MAC Address"
 
-  # Human-readable RTC wall time, for the blueos-site-ui status table / debugging
+  # Human-readable RTC wall time, for Site Steward's status table / debugging
   # clock drift without needing a separate time-sync tool.
   # Synced from blueos-site-esphome's bundled config/blueos-relay.yaml.
   - platform: template
@@ -291,7 +291,7 @@ text_sensor:
       return std::string(buf);
 
   # Last time NTP/ESP wall time was written into the DS3231 (manual Sync or SNTP).
-  # Site Controls shows this as "Last synced: …" on the Sync clock card.
+  # Site Steward's Controls tab shows this as "Last synced: …" on the Sync clock card.
   - platform: template
     name: "RTC Last Sync"
     id: rtc_last_sync
@@ -352,9 +352,9 @@ switch:
   # Momentary switch (not a `button:`) so it gets an MQTT command/state topic.
   # ESPHome's MQTT integration has no MQTTButtonComponent, so native `button:`
   # entities (rtc_read_button / rtc_write_button below) are API/web_server-only
-  # and cannot be triggered from blueos-site-ui over MQTT. This switch writes
+  # and cannot be triggered from Site Steward over MQTT. This switch writes
   # the ESP's current time (already NTP-synced via `sntp` when online) into the
-  # DS3231, on demand, from the control page.
+  # DS3231, on demand, from the Controls tab.
   # Topic: blueos/relay/switch/rtc_sync_now/command (payload "ON").
   - platform: template
     name: "RTC Sync Now"

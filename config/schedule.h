@@ -1,8 +1,8 @@
 // BlueOS relay scheduler — shared by blueos-relay.yaml (this repo) and the
 // bundled copy in blueos-site-esphome/config/schedule.h. Keep both in sync.
 //
-// Design goals (see BlueOS-HA-node/PLAN.md + blueos-site-stack/blueos-site-ui
-// MQTT schema docs):
+// Design goals (see BlueOS-HA-node/PLAN.md + blueos-site-steward MQTT schema
+// docs — historically split across blueos-site-stack/blueos-site-ui):
 //   - Per-relay daily on/off time-of-day window + optional day-of-week mask.
 //   - Schedule state lives in RAM only; durability comes from MQTT retained
 //     messages on blueos/relay/schedule/relay_<N>/set (broker replays the

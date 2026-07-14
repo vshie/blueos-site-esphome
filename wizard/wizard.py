@@ -38,7 +38,7 @@ YAML_PATH = os.path.join(CONFIG_DIR, f"{PROJECT_NAME}.yaml")
 FACTORY_YAML = os.path.join(FACTORY_DIR, f"{PROJECT_NAME}.yaml")
 FACTORY_SECRETS_EXAMPLE = os.path.join(FACTORY_DIR, "secrets.yaml.example")
 # blueos-relay.yaml's `esphome.includes` pulls this in for the relay
-# scheduler (see blueos-site-ui's "MQTT schedule schema" docs) — must live
+# scheduler (see blueos-site-steward's "MQTT schedule schema" docs) — must live
 # next to the .yaml in /config for the ESPHome compiler to find it.
 SCHEDULE_HEADER = "schedule.h"
 FACTORY_SCHEDULE_HEADER = os.path.join(FACTORY_DIR, SCHEDULE_HEADER)
@@ -278,7 +278,7 @@ class Handler(BaseHTTPRequestHandler):
                     ),
                     "icon": "mdi-chip",
                     "company": "Community",
-                    "version": "0.4.1",
+                    "version": "0.4.2",
                     "webpage": "https://github.com/vshie/blueos-site-esphome",
                     "api": "https://github.com/vshie/blueos-site-esphome/blob/main/README.md",
                     "new_page": False,
