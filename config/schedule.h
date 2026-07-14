@@ -98,4 +98,26 @@ inline bool should_be_on(const RelaySchedule &sc, int minute_of_day, uint8_t day
   return in_time_window(sc, minute_of_day);
 }
 
+// JSON body for blueos/relay/schedule/relay_<N>/state (and mirrored on /set).
+inline std::string schedule_to_json(const RelaySchedule &sc) {
+  char buf[128];
+  std::snprintf(
+      buf, sizeof(buf),
+      "{\"enabled\":%s,\"on\":\"%s\",\"off\":\"%s\",\"days\":\"%s\"}",
+      sc.enabled ? "true" : "false", format_hhmm(sc.on_min).c_str(),
+      format_hhmm(sc.off_min).c_str(), days_to_string(sc.days_mask).c_str());
+  return std::string(buf);
+}
+
+inline const char *schedule_state_topic(int index) {
+  static const char *topics[NUM_RELAYS] = {
+      "blueos/relay/schedule/relay_1/state", "blueos/relay/schedule/relay_2/state",
+      "blueos/relay/schedule/relay_3/state", "blueos/relay/schedule/relay_4/state",
+      "blueos/relay/schedule/relay_5/state", "blueos/relay/schedule/relay_6/state",
+  };
+  if (index < 0 || index >= NUM_RELAYS)
+    return nullptr;
+  return topics[index];
+}
+
 }  // namespace blueos_schedule

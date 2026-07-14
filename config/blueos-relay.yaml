@@ -79,9 +79,8 @@ mqtt:
             if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
             if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
             if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
-        - script.execute:
-            id: publish_relay_schedule
-            index: 0
+            id(mqtt_client).publish(blueos_schedule::schedule_state_topic(0),
+                                    blueos_schedule::schedule_to_json(sc), 0, true);
     - topic: blueos/relay/schedule/relay_2/set
       then:
         - lambda: |-
@@ -90,9 +89,8 @@ mqtt:
             if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
             if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
             if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
-        - script.execute:
-            id: publish_relay_schedule
-            index: 1
+            id(mqtt_client).publish(blueos_schedule::schedule_state_topic(1),
+                                    blueos_schedule::schedule_to_json(sc), 0, true);
     - topic: blueos/relay/schedule/relay_3/set
       then:
         - lambda: |-
@@ -101,9 +99,8 @@ mqtt:
             if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
             if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
             if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
-        - script.execute:
-            id: publish_relay_schedule
-            index: 2
+            id(mqtt_client).publish(blueos_schedule::schedule_state_topic(2),
+                                    blueos_schedule::schedule_to_json(sc), 0, true);
     - topic: blueos/relay/schedule/relay_4/set
       then:
         - lambda: |-
@@ -112,9 +109,8 @@ mqtt:
             if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
             if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
             if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
-        - script.execute:
-            id: publish_relay_schedule
-            index: 3
+            id(mqtt_client).publish(blueos_schedule::schedule_state_topic(3),
+                                    blueos_schedule::schedule_to_json(sc), 0, true);
     - topic: blueos/relay/schedule/relay_5/set
       then:
         - lambda: |-
@@ -123,9 +119,8 @@ mqtt:
             if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
             if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
             if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
-        - script.execute:
-            id: publish_relay_schedule
-            index: 4
+            id(mqtt_client).publish(blueos_schedule::schedule_state_topic(4),
+                                    blueos_schedule::schedule_to_json(sc), 0, true);
     - topic: blueos/relay/schedule/relay_6/set
       then:
         - lambda: |-
@@ -134,20 +129,19 @@ mqtt:
             if (x["on"].is<const char*>()) sc.on_min = blueos_schedule::parse_hhmm(x["on"].as<std::string>(), sc.on_min);
             if (x["off"].is<const char*>()) sc.off_min = blueos_schedule::parse_hhmm(x["off"].as<std::string>(), sc.off_min);
             if (x["days"].is<const char*>()) sc.days_mask = blueos_schedule::days_from_string(x["days"].as<std::string>(), sc.days_mask);
-        - script.execute:
-            id: publish_relay_schedule
-            index: 5
+            id(mqtt_client).publish(blueos_schedule::schedule_state_topic(5),
+                                    blueos_schedule::schedule_to_json(sc), 0, true);
   on_connect:
     then:
       # Give the broker a moment to replay retained schedule/set messages
-      # (received above) before we echo back the state topics.
+      # before we echo back the state topics Site Controls can display.
       - delay: 2s
-      - script.execute: { id: publish_relay_schedule, index: 0 }
-      - script.execute: { id: publish_relay_schedule, index: 1 }
-      - script.execute: { id: publish_relay_schedule, index: 2 }
-      - script.execute: { id: publish_relay_schedule, index: 3 }
-      - script.execute: { id: publish_relay_schedule, index: 4 }
-      - script.execute: { id: publish_relay_schedule, index: 5 }
+      - lambda: |-
+          for (int i = 0; i < blueos_schedule::NUM_RELAYS; i++) {
+            const auto &sc = blueos_schedule::schedules()[i];
+            id(mqtt_client).publish(blueos_schedule::schedule_state_topic(i),
+                                    blueos_schedule::schedule_to_json(sc), 0, true);
+          }
 
 # Pico HAT I2C0 — Pico-RTC-DS3231 uses GP4=SDA, GP5=SCL (maps 1:1 on this board).
 # Official Arduino Wire defaults (8/9) are NOT the Pico HAT bus.
@@ -183,6 +177,16 @@ time:
         - logger.log: "SNTP synced — writing wall time to DS3231"
         - ds1307.write_time:
             id: rtc_time
+        - lambda: |-
+            auto t = id(rtc_time).now();
+            if (!t.is_valid()) {
+              id(rtc_last_sync).publish_state("unknown");
+              return;
+            }
+            char buf[24];
+            snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d",
+                     t.year, t.month, t.day_of_month, t.hour, t.minute, t.second);
+            id(rtc_last_sync).publish_state(buf);
 
 uart:
   id: rs485_uart
@@ -286,6 +290,14 @@ text_sensor:
                t.year, t.month, t.day_of_month, t.hour, t.minute, t.second);
       return std::string(buf);
 
+  # Last time NTP/ESP wall time was written into the DS3231 (manual Sync or SNTP).
+  # Site Controls shows this as "Last synced: …" on the Sync clock card.
+  - platform: template
+    name: "RTC Last Sync"
+    id: rtc_last_sync
+    icon: mdi:clock-check
+    entity_category: diagnostic
+
 switch:
   - platform: gpio
     name: "Relay 1"
@@ -348,40 +360,23 @@ switch:
     name: "RTC Sync Now"
     id: rtc_sync_now
     optimistic: true
+    entity_category: config
     turn_on_action:
       - ds1307.write_time:
           id: rtc_time
+      - lambda: |-
+          auto t = id(rtc_time).now();
+          if (!t.is_valid()) {
+            id(rtc_last_sync).publish_state("unknown");
+          } else {
+            char buf[24];
+            snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d",
+                     t.year, t.month, t.day_of_month, t.hour, t.minute, t.second);
+            id(rtc_last_sync).publish_state(buf);
+          }
       - logger.log: "RTC synced from ESP/NTP time via MQTT command"
       - delay: 200ms
       - switch.turn_off: rtc_sync_now
-
-# Publishes one relay's schedule as a retained JSON state message, e.g.
-#   blueos/relay/schedule/relay_1/state -> {"enabled":true,"on":"06:00","off":"18:00","days":"1111111"}
-# Called after every schedule.../set update and once on every MQTT (re)connect
-# so blueos-site-ui always has a current, authoritative copy to render.
-script:
-  - id: publish_relay_schedule
-    parameters:
-      index: int
-    then:
-      - lambda: |-
-          static const char *topics[blueos_schedule::NUM_RELAYS] = {
-            "blueos/relay/schedule/relay_1/state",
-            "blueos/relay/schedule/relay_2/state",
-            "blueos/relay/schedule/relay_3/state",
-            "blueos/relay/schedule/relay_4/state",
-            "blueos/relay/schedule/relay_5/state",
-            "blueos/relay/schedule/relay_6/state",
-          };
-          if (index < 0 || index >= blueos_schedule::NUM_RELAYS) return;
-          auto sc = blueos_schedule::schedules()[index];
-          std::string topic = topics[index];
-          id(mqtt_client).publish_json(topic, [sc](JsonObject root) {
-            root["enabled"] = sc.enabled;
-            root["on"] = blueos_schedule::format_hhmm(sc.on_min);
-            root["off"] = blueos_schedule::format_hhmm(sc.off_min);
-            root["days"] = blueos_schedule::days_to_string(sc.days_mask);
-          }, 0, true);
 
 # Edge-triggered schedule engine: evaluates all 6 relays against
 # id(rtc_time).now() every 15s and only calls switch.turn_on/turn_off when the

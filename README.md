@@ -95,6 +95,19 @@ save the wizard config, open the dashboard, and **Install** targeting `OTA`
 the expected path for most day-2 changes (Wi‑Fi password rotation, broker
 rename after a BlueOS hostname change, YAML tweaks).
 
+### Adding a second (or Nth) board
+
+1. In the ESPHome Device Builder, **duplicate** `blueos-relay.yaml` (or start
+   from the factory copy under `/opt/blueos/factory`).
+2. Change at least: `esphome.name`, `friendly_name`, and `mqtt.topic_prefix`
+   (must be unique, e.g. `blueos/pump` — Site Controls / Telegraf key off this).
+3. Edit sensors/relays in YAML as needed; keep publishing under the ESPHome
+   `…/<domain>/<object_id>/state` shape.
+4. Run the setup wizard (Wi‑Fi + Beacon broker secrets), then USB flash or OTA.
+5. After the board connects: **Site Controls** lists it automatically;
+   **Influx** ingests the common metrics via Telegraf wildcards; in **Grafana**
+   pick the new device in the **ESP board** dropdown.
+
 ## USB permissions
 
 The ESP32-S3's serial device node isn't predictable ahead of time (varies by
